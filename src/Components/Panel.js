@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { DragDropContext, Droppable } from 'react-beautiful-dnd';
+import React, { useCallback } from 'react';
+import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
 import styled from 'styled-components';
 import useLocalStorage from '../hooks/useLocalStorage.js';
 import Column from './Column';
@@ -36,16 +36,15 @@ const initialData = {
 const Panel = () => {
   const [tasksData, setTasksData] = useLocalStorage(initialData);
 
-  const editColumnTitle = (newTitle, columnId) => {
+  // TODO add useCallback to prevent unnecessary rerenders
+  const editColumnTitle = useCallback((newTitle, columnId) => {
     const columnIndex = tasksData.columns.findIndex((col) => col.id === columnId);
     const newColumns = tasksData.columns.slice()
-
     newColumns[columnIndex].title = newTitle;
-
     setTasksData({ columns: newColumns });
-  }
+  }, [tasksData, setTasksData]);
 
-  const addNewColumn = () => {
+  const addNewColumn = useCallback(() => {
     const newColumnId = `column-${+Object.keys(tasksData.columns).length+1}`
     const newColumns = [
       ...tasksData.columns,
@@ -55,66 +54,117 @@ const Panel = () => {
         tasks: []
       }
     ]
-
     setTasksData({ columns: newColumns });
-  }
+  }, [tasksData, setTasksData]);
 
-  const removeColumn = (columnId) => {
+  const removeColumn = useCallback((columnId) => {
     const newColumns = tasksData.columns.filter((col) => col.id !== columnId);
-
     setTasksData({ columns: newColumns });
-  }
+  }, [tasksData, setTasksData]);
 
-  const addNewTask = (contentText, columnId) => {
+  const addNewTask = useCallback((contentText, columnId) => {
     const columnIndex = tasksData.columns.findIndex((col) => col.id === columnId);
     const newColumns = tasksData.columns.slice()
-
     newColumns[columnIndex].tasks.push({
       id: `task-${Date.now()}`,
       content: contentText
     })
-    
     setTasksData({ columns: newColumns });
-  }
+  }, [tasksData, setTasksData]);
 
-  const removeTask = (taskId, columnId) => {
+  const removeTask = useCallback((taskId, columnId) => {
     const columnIndex = tasksData.columns.findIndex((col) => col.id === columnId);
     const newColumns = tasksData.columns.slice()
-
     newColumns[columnIndex].tasks = newColumns[columnIndex].tasks.filter((task) => task.id !== taskId);
-
     setTasksData({ columns: newColumns });
-  }
+  }, [tasksData, setTasksData]);
 
+  const reorder = (list, startIndex, endIndex) => {
+    const result = Array.from(list);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    return result;
+  };
+  
+  const move = (coulmns, sourceCoulumnId, destinationCoulumnId, droppableSource, droppableDestination) => {
+    const sourceClone = Array.from(coulmns[sourceCoulumnId].tasks);
+    const destClone = Array.from(coulmns[destinationCoulumnId].tasks);
+    const [removed] = sourceClone.splice(droppableSource.index, 1);
+    destClone.splice(droppableDestination.index, 0, removed);
+    const result = [ ...coulmns ];
+    result[sourceCoulumnId].tasks = sourceClone;
+    result[destinationCoulumnId].tasks = destClone;
+    return result;
+  };
+
+  const onDragEnd = useCallback((result) => {
+    const { source, destination, type } = result;
+    const stateColumns = Array.from(tasksData.columns);
+
+    if (!destination) {
+      return;
+    }
+    const sInd = source.droppableId;
+    const dInd = destination.droppableId;
+    const sourceCoulumnId = tasksData.columns.findIndex((col) => col.id === sInd);
+    if (sInd === dInd) {
+      if(type === 'Column') {
+        const columns = reorder(tasksData.columns, source.index, destination.index);
+        return setTasksData({ columns: columns });
+      }
+      const currentColumn = { ...tasksData.columns[sourceCoulumnId] };
+      const items = reorder(tasksData.columns[sourceCoulumnId].tasks, source.index, destination.index);
+      currentColumn.tasks = items;
+      const newState = [...stateColumns];
+      newState[sourceCoulumnId] = currentColumn;
+      setTasksData({ columns: newState });
+    } else {
+      const destinationCoulumnId = tasksData.columns.findIndex((col) => col.id === dInd);
+      const result = move(stateColumns, sourceCoulumnId, destinationCoulumnId, source, destination);
+      setTasksData({ columns: result });
+    }
+  }, [tasksData, setTasksData]);
 
   return (
     <Container>
       <Title>Your Daily Doings</Title>
-      <DragDropContext 
-      >
-        <ColumnsContainer>
-          {tasksData && tasksData.columns.map((column, index) => (
-            <Droppable droppableId={column.id} key={column.id}>
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                >
-                  <Column 
-                    key={column.id} 
-                    column={column} 
-                    index={index} 
-                    addNewTask={addNewTask} 
-                    removeTask={removeTask}
-                    editColumnTitle={editColumnTitle}
-                    removeColumn={removeColumn}
-                  />
-                </div>
-              )}
-            </Droppable>
-          ))}
-          <AddColumnButton onClick={e => addNewColumn()}>+</AddColumnButton>
-        </ColumnsContainer>
+      <DragDropContext onDragEnd={onDragEnd} >
+        <Droppable 
+          droppableId="all-columns"
+          type="Column"
+          direction="horizontal"
+        >
+          {(providedColumnDrop) => (
+            <ColumnsContainer
+              ref={providedColumnDrop.innerRef}
+              {...providedColumnDrop.droppableProps}
+            >
+              {tasksData && tasksData.columns.map((column, index) => (
+                <Draggable draggableId={column.id} index={index} key={column.id}>
+                  {(providedColumnDrag, snapshot) => (
+                      <ColumnContainer
+                         ref={providedColumnDrag.innerRef}
+                         {...providedColumnDrag.draggableProps}
+                      >
+                        <Column
+                          key={column.id}
+                          column={column}
+                          index={index}
+                          addNewTask={addNewTask}
+                          removeTask={removeTask}
+                          editColumnTitle={editColumnTitle}
+                          removeColumn={removeColumn}
+                          dragHandleProps={providedColumnDrag.dragHandleProps}
+                        />
+                      </ColumnContainer>
+                  )}
+                </Draggable>
+              ))}
+              {providedColumnDrop.placeholder}
+              <AddColumnButton onClick={e => addNewColumn()}>+</AddColumnButton>
+            </ColumnsContainer>
+          )}
+        </Droppable>
       </DragDropContext>
     </Container>
   );
@@ -155,6 +205,14 @@ const AddColumnButton = styled.button`
         background-color: palevioletred;
         color: white;
     }
+`;
+
+const ColumnContainer = styled.div`
+    border: 1px solid lightgrey;
+    background-color: white;
+    border-radius: 2px;
+    height: fit-content;
+    margin: 8px;
 `;
 
 export default Panel;

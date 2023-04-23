@@ -1,17 +1,12 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Draggable } from 'react-beautiful-dnd';
+import { Draggable, Droppable } from 'react-beautiful-dnd';
 import Task from './Task';
 
 const Container = styled.div`
     margin: 8px;
     padding: 0.5em;
-    border: 1px solid lightgrey;
-    background-color: white;
-    border-radius: 2px;
     width: 220px;
-    max-height: 35em;
-    height: fit-content;
     display: flex;
     flex-direction: column;
     
@@ -19,8 +14,9 @@ const Container = styled.div`
 const Title = styled.h3`
     padding: 8px;
     margin: 0 auto 0.5em auto;
+    width: 100%;
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
 `;
 
 const TitleInput = styled.input`
@@ -30,6 +26,11 @@ const TitleInput = styled.input`
     font-size: 1.3em;
     text-align: start;
 `;
+
+const TitleLabel = styled.div`
+    cursor: pointer;
+    width: fit-content;
+`
 
 const RemoveButton = styled.button`
     border: none;
@@ -41,7 +42,6 @@ const RemoveButton = styled.button`
 
 const InputContainer = styled.div`
     display: flex;
-    margin: auto auto 0.5em auto;
 `;
 
 const Input = styled.input`
@@ -76,13 +76,12 @@ const SendButton = styled.button`
 
 const Column = ({ 
   column, 
-  index, 
   editColumnTitle,
   removeColumn, 
   addNewTask, 
-  removeTask 
+  removeTask,
+  dragHandleProps
 }) => {
-  const placeholder = 'Add task...';
   const [inputData, setInputData] = useState('');
   const [isEditTitle, setIsEditTitle] = useState(false);
 
@@ -102,71 +101,70 @@ const Column = ({
   return (
     <Container>
       <RemoveButton onClick={() => removeColumn(column.id)}>X</RemoveButton>
-      <Title 
+      <Title
         onClick={e => setIsEditTitle(true)}
         onBlur={e => setIsEditTitle(false)}
+        {...dragHandleProps}
       >
-        {isEditTitle 
-          ? <TitleInput 
-              autoFocus 
+        {isEditTitle
+          ? <TitleInput
+              autoFocus
               onBlur={e => editColumnTitle(e.target.value, column.id)}
               onKeyDown={e => onEnterKey(e)}
-              type='text' 
-              placeholder={column.title} 
-            /> 
-          : column.title}
+              type='text'
+              placeholder={column.title}
+            />
+          : <TitleLabel>{column.title}</TitleLabel>}
       </Title>
-      {column && column.tasks.map((task, index) => (
-        <Draggable key={task.id} draggableId={task.id} index={index}>
-          {(provided, snapshot) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.draggableProps}
-              {...provided.dragHandleProps}
-            >
-              <Task
-                key={task.id}
-                task={task}
-                columnId={column.id}
-                removeTask={removeTask}
+      <Droppable
+        type="Task"
+        droppableId={column.id} 
+        key={column.id}
+      >
+        {(providedTaskDrop, dropSnapshot) => (
+          <div
+          {...providedTaskDrop.droppableProps}
+            ref={providedTaskDrop.innerRef}
+            key={column.id}
+            isDraggingFrom={Boolean(dropSnapshot.draggingFromThisWith)}
+          >
+            {column && column.tasks.map((task, index) => (
+              <Draggable key={task.id} draggableId={task.id} index={index}>
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                  >
+                    <Task
+                      key={task.id}
+                      task={task}
+                      columnId={column.id}
+                      removeTask={removeTask}
+                    />
+                  </div>)}
+              </Draggable>
+            ))}
+            {providedTaskDrop.placeholder}
+
+            {!dropSnapshot.isDraggingOver && <InputContainer>
+              <Input
+                value={inputData}
+                onChange={e => setInputData(e.target.value)}
+                type='text'
+                placeholder='Add task...'
               />
-            </div>)}
-
-        </Draggable>
-      ))}
-      <InputContainer>
-        <Input 
-          value={inputData} 
-          onChange={e => setInputData(e.target.value)} 
-          type='text' 
-          placeholder={placeholder} 
-        />
-        <SendButton 
-          disabled={!inputData} 
-          onClick={(e) => addNewTaskHandler(e)}
-        >
-          <b>{'>'}</b>
-        </SendButton>
-      </InputContainer>
-
+              <SendButton
+                disabled={!inputData}
+                onClick={(e) => addNewTaskHandler(e)}
+              >
+                <b>{'>'}</b>
+              </SendButton>
+            </InputContainer>}
+          </div>
+        )}
+      </Droppable>
     </Container>
-    // <Droppable draggableId={id} index={index}>
-    //   {(provided) => (
-    //     <Container
-    //       {...provided.draggableProps}
-    //       ref={provided.innerRef}
-    //     >
-    //       <Title
-    //         {...provided.dragHandleProps}
-    //       >
-    //         {title}
-    //       </Title>
-    //       <Draggable droppableId={id} type='task'>
-          
-    //       </Draggable>
-    //     </Container>
-    //   )}
-    // </Droppable>
   );
 }
 
