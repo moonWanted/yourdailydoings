@@ -1,0 +1,53 @@
+####### api #######
+# Ignore bundler config.
+api/.bundle
+
+# Ignore all logfiles and tempfiles.
+/log/*
+/tmp/*
+api/log/*
+api/tmp/*
+!/api/log/.keep
+!/api/tmp/.keep
+
+# Ignore pidfiles, but keep the directory.
+api/tmp/pids/*
+!/api/tmp/pids/
+!/api/tmp/pids/.keep
+
+# Ignore uploaded files in development.
+api/storage/*
+!/api/storage/.keep
+api/tmp/storage/*
+!/api/tmp/storage/
+!/api/tmp/storage/.keep
+
+# Ignore master key for decrypting credentials and more.
+api/config/master.key
+
+api/.DS_Store
+api/.byebug_history
+
+
+####### client #######
+# dependencies
+client/node_modules
+client/.pnp
+client/.pnp.js
+
+# testing
+client/coverage
+
+# production
+client/build
+
+# misc
+client/.DS_Store
+client/.env.local
+client/.env.development.local
+client/.env.test.local
+client/.env.production.local
+
+client/npm-debug.log*
+client/yarn-debug.log*
+client/yarn-error.log*

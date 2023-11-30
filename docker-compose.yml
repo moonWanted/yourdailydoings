@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres
+    volumes:
+      - ./tmp/db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: 1111
+    working_dir: /api
+  api:
+    build: api
+    image: rails-api
+    command: bash -c "bundle exec rails s -p 5000 -b '0.0.0.0'"
+    stdin_open: true
+    tty: true
+    ports:
+      - "5000:5000"
+    working_dir: /api
+    volumes:
+      - ./api:/api
+    depends_on:
+      - db
+  client:
+    build: client
+    image: react-client
+    command: sh -c "npm install && npm start"
+    ports:
+      - "3000:3000"
+    working_dir: /client
+    volumes:
+      - ./client:/client
+    environment:
+      POSTGRES_PASSWORD: 1111
