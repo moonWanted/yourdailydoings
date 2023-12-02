@@ -19,15 +19,16 @@ default: &default
   adapter: postgresql
   encoding: unicode
   pool: 5
+  
+
+
+development:
+  <<: *default
   database: ydd_development
   username: postgres
   password: 1111
   host: localhost
   timeout: 5000
-
-
-development:
-  <<: *default
  
   # Connect on a TCP socket. Omitted by default since the client uses a
   # domain socket that doesn't need configuration. Windows does not have
@@ -55,5 +56,4 @@ test:
 
 production:
   <<: *default
-
- 
+  url: <% ENV['DATABASE_URL'] %>
